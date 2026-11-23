@@ -96,6 +96,7 @@ Los detalles obligatorios están en:
 
 ## Equipo
 
+Nombres: Amparo
 Nombres: David 
 
 Metodología: `Spec-Driven`
