@@ -1,16 +1,55 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app import classifier, db
-from app.models import ALLOWED_CATEGORIES, ALLOWED_PRIORITIES, Ticket, TicketCreate
+from app.models import (
+    ALLOWED_CATEGORIES,
+    ALLOWED_PRIORITIES,
+    REOPENABLE_STATUSES,
+    STATUS_LABELS,
+    Category,
+    Priority,
+    Status,
+    Ticket,
+    TicketCreate,
+    TicketUpdate,
+    is_valid_transition,
+    next_statuses,
+)
+
+load_dotenv()
 
 app = FastAPI(title="TriageBot")
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+
+def since(iso_timestamp: str, now: datetime | None = None) -> str:
+    """Tiempo transcurrido en texto relativo: "hace 5 min", "hace 3 h", "hace 2 días"."""
+    then = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
+    seconds = max(0, int(((now or datetime.now(UTC)) - then).total_seconds()))
+    if seconds < 60:
+        return "hace un momento"
+    if seconds < 3600:
+        return f"hace {seconds // 60} min"
+    if seconds < 86400:
+        return f"hace {seconds // 3600} h"
+    days = seconds // 86400
+    return f"hace {days} día" if days == 1 else f"hace {days} días"
+
+
+templates.env.filters["since"] = since
+templates.env.globals.update(
+    status_labels=STATUS_LABELS,
+    next_statuses=next_statuses,
+    reopenable_statuses=REOPENABLE_STATUSES,
+)
 
 
 @app.get("/health")
@@ -66,8 +105,28 @@ def create_ticket(request: Request, payload: TicketCreate):
     return ticket
 
 
-# TODO: implementar durante el bootcamp.
-# Endpoints esperados por los tests:
-# - GET /tickets
-# - PATCH /tickets/{ticket_id}
-# - GET /
+@app.get("/tickets", response_model=list[Ticket])
+def list_tickets(
+    category: Category | None = None,
+    priority: Priority | None = None,
+    status: Status | None = None,
+) -> list[dict]:
+    return db.list_tickets(category=category, priority=priority, status=status)
+
+
+@app.patch("/tickets/{ticket_id}", response_model=Ticket)
+def update_ticket(request: Request, ticket_id: int, payload: TicketUpdate):
+    ticket = db.get_ticket(ticket_id)
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    if payload.status is not None and not is_valid_transition(ticket["status"], payload.status):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Transición no permitida: {ticket['status']} → {payload.status}",
+        )
+    updated = db.update_ticket(ticket_id, status=payload.status, priority=payload.priority)
+    if request.headers.get("HX-Request") == "true":
+        return templates.TemplateResponse(
+            request, "_row.html", {"ticket": updated, "now": db.now_iso()}
+        )
+    return updated
