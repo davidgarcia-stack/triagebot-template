@@ -17,16 +17,16 @@
   "resolved": "bg-emerald-100 text-emerald-800 ring-emerald-200",
   "closed": "bg-slate-200 text-slate-600 ring-slate-300",
 } %}
-<tr id="ticket-{{ ticket.id }}" class="hover:bg-slate-50">
-  <td class="px-3 py-2 text-sm text-slate-500">#{{ ticket.id }}</td>
-  <td class="px-3 py-2 text-sm font-medium max-w-xs truncate" title="{{ ticket.title }}">{{ ticket.title }}</td>
-  <td class="px-3 py-2 text-sm">
+<tr id="ticket-{{ ticket.id }}" class="hover:bg-indigo-50/40">
+  <td class="px-4 py-3 text-sm text-slate-500">#{{ ticket.id }}</td>
+  <td class="px-4 py-3 text-sm font-medium max-w-xs truncate" title="{{ ticket.title }}">{{ ticket.title }}</td>
+  <td class="px-4 py-3 text-sm">
     <span class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset {{ category_styles.get(ticket.category, 'bg-slate-100 text-slate-700 ring-slate-200') }}">{{ ticket.category }}</span>
   </td>
-  <td class="px-3 py-2 text-sm">
+  <td class="px-4 py-3 text-sm">
     <span class="inline-flex items-center whitespace-nowrap rounded px-2 py-0.5 text-xs font-bold {{ priority_styles.get(ticket.priority, 'bg-slate-100 text-slate-700') }}">{{ ticket.priority }}</span>
   </td>
-  <td class="px-3 py-2 text-sm">
+  <td class="px-4 py-3 text-sm">
     {% if ticket.tags %}
     <div class="flex flex-wrap gap-1">
       {% for tag in ticket.tags %}
@@ -37,7 +37,7 @@
     <span class="text-slate-400">—</span>
     {% endif %}
   </td>
-  <td class="px-3 py-2 text-sm">
+  <td class="px-4 py-3 text-sm">
     <div class="flex items-center gap-2">
       <select
         name="status"
@@ -66,11 +66,11 @@
       {% endif %}
     </div>
   </td>
-  <td class="px-3 py-2 text-sm text-slate-500 whitespace-nowrap" title="Desde {{ ticket.status_changed_at }}">{{ ticket.status_changed_at | since }}</td>
-  <td class="px-3 py-2 text-sm text-slate-500 whitespace-nowrap">{{ ticket.created_at[:10] }} {{ ticket.created_at[11:16] }}</td>
+  <td class="px-4 py-3 text-sm text-slate-500 whitespace-nowrap" title="Desde {{ ticket.status_changed_at }}">{{ ticket.status_changed_at | since }}</td>
+  <td class="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{{ ticket.created_at[:10] }} {{ ticket.created_at[11:16] }}</td>
   {# Cadenas ISO UTC con Z: se comparan bien como texto. Un ticket resuelto o cerrado nunca vence. #}
   {% set overdue = now and ticket.status not in ("resolved", "closed") and ticket.due_at < now %}
-  <td class="px-3 py-2 text-sm whitespace-nowrap {{ 'font-medium text-red-700' if overdue else 'text-slate-500' }}">
+  <td class="px-4 py-3 text-sm whitespace-nowrap {{ 'font-medium text-red-700' if overdue else 'text-slate-500' }}">
     {{ ticket.due_at[:10] }} {{ ticket.due_at[11:16] }}
     {% if overdue %}<span class="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700">Vencido</span>{% endif %}
   </td>

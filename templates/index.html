@@ -4,71 +4,164 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TriageBot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"] } } } };
+  </script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://unpkg.com/htmx-ext-json-enc@2.0.1/json-enc.js"></script>
   <style>
     .htmx-indicator { display: none; }
-    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-flex; }
+    html { scroll-behavior: smooth; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
-  <main class="mx-auto max-w-6xl p-6">
-    <h1 class="text-3xl font-bold">TriageBot</h1>
-    <p class="mt-2 text-slate-600">Tablero de incidencias con clasificación automática por IA.</p>
-
-    <form
-      id="ticket-form"
-      class="mt-6 space-y-4 rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200"
-      hx-post="/tickets"
-      hx-ext="json-enc"
-      hx-target="#tickets-table-body"
-      hx-disabled-elt="find button"
-      hx-indicator="#spinner"
-      hx-on::after-request="if (event.detail.successful) this.reset()"
-    >
-      <div>
-        <label for="title" class="block text-sm font-medium">Título</label>
-        <input
-          type="text"
-          id="title"
-          name="title"
-          required
-          maxlength="200"
-          class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
-        >
-      </div>
-      <div>
-        <label for="description" class="block text-sm font-medium">Descripción</label>
-        <textarea
-          id="description"
-          name="description"
-          rows="4"
-          required
-          maxlength="5000"
-          class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
-        ></textarea>
-      </div>
+{% from "_icons.html" import icon with context %}
+<body class="min-h-screen bg-[#f6f7fb] font-sans text-slate-900 antialiased">
+  {# --- Cabecera --- #}
+  <header class="bg-[#0f1535] text-white">
+    <div class="mx-auto flex max-w-[1880px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <a href="/" class="flex items-center gap-3">
+        <span class="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/30">{{ icon("ticket", "h-6 w-6") }}</span>
+        <span class="leading-tight">
+          <span class="block text-xl font-extrabold tracking-tight">TriageBot</span>
+          <span class="hidden text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-200/70 sm:block">Soporte · triage IA</span>
+        </span>
+      </a>
       <div class="flex items-center gap-3">
-        <button
-          type="submit"
-          class="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-slate-700 disabled:opacity-50"
-        >
-          Crear ticket
-        </button>
-        <span id="spinner" class="htmx-indicator text-sm text-slate-600">Clasificando…</span>
+        {% if ai_ready %}
+        <span class="hidden items-center gap-2 rounded-full bg-emerald-400/10 px-3 py-1.5 text-sm font-semibold text-emerald-300 ring-1 ring-emerald-400/30 sm:inline-flex" title="Clasificador conectado a OpenRouter">
+          <span class="h-2 w-2 rounded-full bg-emerald-400"></span> IA conectada
+        </span>
+        {% else %}
+        <span class="hidden items-center gap-2 rounded-full bg-amber-400/10 px-3 py-1.5 text-sm font-semibold text-amber-300 ring-1 ring-amber-400/30 sm:inline-flex" title="Sin OPENROUTER_API_KEY: los tickets se crean con la clasificación por defecto">
+          <span class="h-2 w-2 rounded-full bg-amber-400"></span> IA en modo fallback
+        </span>
+        {% endif %}
+        <a href="#nuevo-ticket" class="hidden items-center gap-2 whitespace-nowrap rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2.5 text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:from-indigo-400 hover:to-violet-400 sm:inline-flex">
+          {{ icon("plus", "h-4 w-4", 2.2) }} Nuevo ticket
+        </a>
       </div>
-      <div id="form-error" class="text-sm text-red-600" role="alert"></div>
-    </form>
+    </div>
+    <nav class="border-t border-white/5 bg-[#131a42]" aria-label="Secciones">
+      <div class="mx-auto flex max-w-[1880px] px-4 py-2 sm:px-6">
+        <a href="/" aria-current="page" class="relative inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold ring-1 ring-white/10">
+          {{ icon("grid", "h-4 w-4") }} Tablero
+          <span class="absolute -bottom-2 left-4 h-0.5 w-8 rounded-full bg-cyan-400"></span>
+        </a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="mx-auto max-w-[1880px] px-4 py-6 sm:px-6">
+    {# --- Migas y título --- #}
+    <nav aria-label="Migas de pan" class="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm text-slate-500 shadow-sm ring-1 ring-slate-200/70">
+      <a href="/" class="inline-flex items-center gap-1 hover:text-slate-800">{{ icon("home", "h-4 w-4") }} Inicio</a>
+      {{ icon("chevron-right", "h-3.5 w-3.5") }}
+      <span class="font-medium text-slate-900">Tablero</span>
+    </nav>
+    <div class="mt-4 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold tracking-tight">Tablero de triage</h1>
+        <p class="mt-1 text-slate-500">Resumen en vivo del soporte — {{ summary.date }}.</p>
+      </div>
+      <a href="#nuevo-ticket" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:from-indigo-400 hover:to-violet-400">
+        {{ icon("plus", "h-4 w-4", 2.2) }} Nuevo ticket
+      </a>
+    </div>
+
+    <div class="mt-6">
+      {% include "_summary.html" %}
+    </div>
+
+    {# --- Gráficas --- #}
+    <div class="mt-6 grid gap-5 lg:grid-cols-3">
+      <div class="lg:col-span-2">{% include "_trend.html" %}</div>
+      {% include "_categories.html" %}
+    </div>
+
+    {# --- Alta de ticket --- #}
+    <section id="nuevo-ticket" class="mt-6 scroll-mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70">
+      <div class="flex items-center gap-3">
+        <span class="grid h-10 w-10 place-items-center rounded-xl bg-indigo-50 text-indigo-600">{{ icon("sparkles", "h-5 w-5") }}</span>
+        <div>
+          <h2 class="text-lg font-bold">Nuevo ticket</h2>
+          <p class="text-sm text-slate-500">La IA asigna categoría, prioridad y tags al crearlo.</p>
+        </div>
+      </div>
+      <form
+        id="ticket-form"
+        class="mt-5 grid gap-4 lg:grid-cols-[1fr_2fr]"
+        hx-post="/tickets"
+        hx-ext="json-enc"
+        hx-target="#tickets-table-body"
+        hx-disabled-elt="find button"
+        hx-indicator="#spinner"
+        hx-on::after-request="if (event.detail.successful) this.reset()"
+      >
+        <div>
+          <label for="title" class="block text-sm font-semibold text-slate-700">Título</label>
+          <input
+            type="text"
+            id="title"
+            name="title"
+            required
+            maxlength="200"
+            placeholder="La app no carga"
+            class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-100"
+          >
+        </div>
+        <div>
+          <label for="description" class="block text-sm font-semibold text-slate-700">Descripción</label>
+          <textarea
+            id="description"
+            name="description"
+            rows="3"
+            required
+            maxlength="5000"
+            placeholder="Desde esta mañana aparece una pantalla en blanco al iniciar sesión"
+            class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-100"
+          ></textarea>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 lg:col-span-2">
+          <button
+            type="submit"
+            class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:from-indigo-400 hover:to-violet-400 disabled:opacity-50"
+          >
+            {{ icon("plus", "h-4 w-4", 2.2) }} Crear ticket
+          </button>
+          <span id="spinner" class="htmx-indicator items-center gap-2 text-sm font-medium text-indigo-600">
+            <span class="h-2 w-2 animate-pulse rounded-full bg-indigo-500"></span> Clasificando…
+          </span>
+          <div id="form-error" class="text-sm font-medium text-red-600" role="alert"></div>
+        </div>
+      </form>
+    </section>
 
     <!-- TODO: filtros HTMX -->
 
-    <div id="board-error" class="mt-6 text-sm text-red-600" role="alert"></div>
+    <div id="board-error" class="mt-6 text-sm font-medium text-red-600" role="alert"></div>
 
-    <section class="mt-2 overflow-x-auto rounded-lg">
-      {% include "_tickets_table.html" %}
+    {# --- Lista --- #}
+    <section id="lista" class="mt-2 scroll-mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70">
+      <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+        <div>
+          <h2 class="text-lg font-bold">Tickets</h2>
+          <p class="text-sm text-slate-500">Ordenados por fecha de creación, de más nuevo a más antiguo</p>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        {% include "_tickets_table.html" %}
+      </div>
     </section>
   </main>
+
+  {# Tooltip compartido por las gráficas: cualquier elemento con data-tip lo muestra. #}
+  <div id="viz-tip" class="pointer-events-none fixed z-50 hidden rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg" role="status"></div>
+
   <script>
     // Con 4xx HTMX no hace swap: mostramos un mensaje legible en vez del JSON crudo.
     document.body.addEventListener("htmx:responseError", function (evt) {
@@ -91,6 +184,40 @@
       document.getElementById("form-error").textContent = "";
       document.getElementById("board-error").textContent = "";
     });
+
+    // Tooltip y cruceta: delegación en document, así sigue funcionando tras los swaps de HTMX.
+    (function () {
+      var tip = document.getElementById("viz-tip");
+      function hide(target) {
+        tip.classList.add("hidden");
+        var svg = target && target.closest && target.closest("svg");
+        var cross = svg && svg.querySelector(".crosshair");
+        if (cross) cross.setAttribute("visibility", "hidden");
+      }
+      document.addEventListener("mousemove", function (evt) {
+        var target = evt.target.closest ? evt.target.closest("[data-tip]") : null;
+        if (!target) { tip.classList.add("hidden"); return; }
+        tip.textContent = target.getAttribute("data-tip");
+        tip.classList.remove("hidden");
+        tip.style.left = Math.min(evt.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + "px";
+        tip.style.top = (evt.clientY - tip.offsetHeight - 10) + "px";
+        var cross = target.getAttribute("data-x") && target.closest("svg").querySelector(".crosshair");
+        if (cross) {
+          var x = target.getAttribute("data-x"), y = target.getAttribute("data-y");
+          cross.querySelector("line").setAttribute("x1", x);
+          cross.querySelector("line").setAttribute("x2", x);
+          cross.querySelector("circle").setAttribute("cx", x);
+          cross.querySelector("circle").setAttribute("cy", y);
+          cross.setAttribute("visibility", "visible");
+        }
+      });
+      document.addEventListener("mouseout", function (evt) {
+        if (evt.target.closest && evt.target.closest("[data-tip]") &&
+            !(evt.relatedTarget && evt.relatedTarget.closest && evt.relatedTarget.closest("[data-tip]"))) {
+          hide(evt.target);
+        }
+      });
+    })();
   </script>
 </body>
 </html>
