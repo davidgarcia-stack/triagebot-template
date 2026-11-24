@@ -176,3 +176,22 @@ def test_old_database_is_migrated(tmp_path, monkeypatch):
     [ticket] = db.list_tickets()
 
     assert ticket["status_changed_at"] == "2026-01-02T00:00:00Z"
+
+
+def test_resolved_ticket_is_never_overdue(create_ticket, client):
+    ticket = create_ticket(priority="P1")
+    conn = db.get_conn()
+    with conn:
+        conn.execute(
+            "UPDATE tickets SET created_at = ? WHERE id = ?",
+            ((datetime.now(UTC) - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"), ticket["id"]),
+        )
+    conn.close()
+    assert "Vencido" in client.get("/").text
+
+    patched = client.patch(
+        f"/tickets/{ticket['id']}", json={"status": "resolved"}, headers={"HX-Request": "true"}
+    )
+
+    assert "Vencido" not in patched.text
+    assert "Vencido" not in client.get("/").text

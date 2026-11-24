@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -36,6 +36,24 @@ def next_statuses(current: str) -> list[str]:
     return list(STATUS_ORDER[STATUS_ORDER.index(current):])
 
 
+# Plazo de resolución por prioridad, en horas naturales (SPEC §4, «Fecha límite»).
+SLA_BY_PRIORITY = {
+    "P1": timedelta(hours=24),
+    "P2": timedelta(hours=72),
+    "P3": timedelta(days=7),
+}
+ISO_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+
+def compute_due_at(created_at: str, priority: str) -> str:
+    """Fecha límite = created_at + plazo de la prioridad actual, en el mismo formato ISO UTC.
+
+    Una prioridad desconocida usa el plazo más laxo (P3) para no romper la lectura del ticket.
+    """
+    sla = SLA_BY_PRIORITY.get(priority, SLA_BY_PRIORITY["P3"])
+    return (datetime.strptime(created_at, ISO_FORMAT) + sla).strftime(ISO_FORMAT)
+
+
 class TicketCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
@@ -67,3 +85,4 @@ class Ticket(BaseModel):
     created_at: datetime
     updated_at: datetime
     status_changed_at: datetime
+    due_at: datetime

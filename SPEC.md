@@ -103,9 +103,28 @@ Una sola entidad: `Ticket`.
 | `created_at` | datetime | UTC, generado en servidor |
 | `updated_at` | datetime | UTC. Igual a `created_at` al crear; se actualiza en cada `PATCH` |
 | `status_changed_at` | datetime | UTC. Igual a `created_at` al crear; solo cambia cuando cambia `status` |
+| `due_at` | datetime | UTC. **Calculado, no se almacena**: `created_at` + plazo de la prioridad actual (ver abajo) |
 
 `category`, `priority` y `tags` los rellena el clasificador (sección 6) en el
 momento de crear el ticket.
+
+### Fecha límite (`due_at`)
+
+Cada ticket tiene una fecha límite que depende de su prioridad:
+
+| Prioridad | Plazo |
+|-----------|-------|
+| `P1` | 24 horas |
+| `P2` | 72 horas |
+| `P3` | 7 días |
+
+- `due_at = created_at + plazo(priority)`, en **horas naturales** (no se saltan
+  fines de semana ni festivos).
+- Se cuenta **siempre desde `created_at`** con la prioridad **actual**: si un
+  `PATCH` cambia la prioridad, `due_at` cambia con ella.
+- Es un dato **derivado**: no hay columna en SQLite, se calcula al leer cada
+  ticket. Mismo formato que `created_at` (`2026-06-30T09:30:00Z`).
+- Un ticket está **vencido** si `due_at` ya pasó y su `status` no es `resolved` ni `closed`.
 
 > **Los enums son vinculantes.** Si vuestro código devuelve `"URGENT"` en
 > mayúsculas o un valor fuera de la lista, los tests fallan.
@@ -185,9 +204,13 @@ durante la petición**: la respuesta ya trae el ticket clasificado.
   "tags": ["login", "error_500", "backend"],
   "status": "open",
   "created_at": "2026-06-29T09:30:00Z",
-  "updated_at": "2026-06-29T09:30:00Z"
+  "updated_at": "2026-06-29T09:30:00Z",
+  "due_at": "2026-06-30T09:30:00Z"
 }
 ```
+
+`due_at` (sección 4) aparece en **todas** las respuestas JSON de un ticket
+(`POST`, `GET` y `PATCH`).
 
 **Errores**:
 - `422 Unprocessable Entity` si `title` o `description` faltan, son vacíos o
@@ -352,7 +375,8 @@ contener:
      formulario, no un JSON crudo.
 2. **Tablero** con la lista de tickets, mostrando: `id`, `title`, `category`
    (color según valor), `priority` (badge: P1 rojo, P2 ámbar, P3 gris), `tags`
-   (chips), `status`, `created_at` (formato `dd/mm/aaaa hh:mm`).
+   (chips), `status`, `created_at` (formato `dd/mm/aaaa hh:mm`) y `due_at`
+   («Fecha límite»; si el ticket está vencido, en rojo con un badge «Vencido»).
 3. **Filtros**: tres `<select>` (`category` / `priority` / `status`), cada uno
    con una opción "Todos". Al cambiar cualquiera, HTMX hace
    `GET /tickets?…` con los tres valores (`hx-include`) y reemplaza solo las
@@ -486,3 +510,7 @@ el README) con fecha y motivo. Ejemplo:
 | 2026-11-24 | Nuevo estado `resolved` («Resuelto») entre `in_progress` y `closed`; los valores de la API siguen en inglés | Pedido de ciclo de vida («en curso», «resuelto»). `test_acceptance.py` exige `in_progress` y `closed`, así que no se renombran |
 | 2026-11-24 | Transiciones: solo hacia delante, más «Reabrir» (`resolved`/`closed` → `open`); el resto → `422` | Permitir reabrir sin perder el sentido del flujo; los tests exigen `open → closed` directo |
 | 2026-11-24 | Campo `status_changed_at` y columna «En este estado» en texto relativo | Mostrar cuánto tiempo lleva el ticket en su estado actual |
+| 2026-11-24 | Un ticket `resolved` tampoco cuenta como vencido | Resuelto significa que ya no hay trabajo pendiente; marcarlo «Vencido» sería ruido |
+| 2026-11-24 | Fecha límite `due_at` por prioridad: P1 24 h, P2 72 h, P3 7 días | Que soporte vea qué vence antes y qué va tarde. Plazos alineados con los criterios del prompt (P1 hoy, P2 mañana, P3 puede esperar) con margen realista |
+| 2026-11-24 | `due_at` en horas naturales | Simple y predecible; sin calendario laboral ni festivos que mantener |
+| 2026-11-24 | `due_at` se calcula desde `created_at` con la prioridad actual y no se guarda | Sigue sola los cambios de prioridad y evita una columna nueva y migrar bases existentes |

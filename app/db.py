@@ -3,6 +3,8 @@ import os
 import sqlite3
 from datetime import UTC, datetime
 
+from app.models import ISO_FORMAT, compute_due_at
+
 DEFAULT_DB_PATH = "triagebot.db"
 
 SCHEMA = """
@@ -47,13 +49,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
             conn.execute("UPDATE tickets SET status_changed_at = updated_at")
 
 
-def _now() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+def now_iso() -> str:
+    """Hora actual en UTC con el mismo formato que se guarda en la base."""
+    return datetime.now(UTC).strftime(ISO_FORMAT)
 
 
 def _row_to_ticket(row: sqlite3.Row) -> dict:
     ticket = dict(row)
     ticket["tags"] = json.loads(ticket["tags"])
+    # Derivado, no almacenado (SPEC §4): sigue a la prioridad actual.
+    ticket["due_at"] = compute_due_at(ticket["created_at"], ticket["priority"])
     return ticket
 
 
@@ -87,7 +92,7 @@ def get_ticket(ticket_id: int) -> dict | None:
 
 def update_ticket(ticket_id: int, status: str | None = None, priority: str | None = None) -> dict:
     """Actualiza status y/o priority. status_changed_at solo cambia si el estado cambia."""
-    now = _now()
+    now = now_iso()
     conn = get_conn()
     try:
         with conn:
@@ -111,7 +116,7 @@ def update_ticket(ticket_id: int, status: str | None = None, priority: str | Non
 
 
 def create_ticket(title: str, description: str, classification: dict) -> dict:
-    now = _now()
+    now = now_iso()
     conn = get_conn()
     try:
         with conn:
