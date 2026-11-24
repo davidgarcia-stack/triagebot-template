@@ -1,14 +1,26 @@
-from fastapi import FastAPI
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 from app import classifier, db
 from app.models import ALLOWED_CATEGORIES, ALLOWED_PRIORITIES, Ticket, TicketCreate
 
 app = FastAPI(title="TriageBot")
 
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
 
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def board(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "index.html", {"tickets": db.list_tickets()})
 
 
 def _fallback() -> dict:

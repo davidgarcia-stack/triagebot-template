@@ -12,7 +12,11 @@
     <h1 class="text-3xl font-bold">TriageBot</h1>
     <p class="mt-2 text-slate-600">Tablero de incidencias con clasificación automática por IA.</p>
 
-    <!-- TODO: formulario + filtros + tabla HTMX -->
+    <!-- TODO: formulario de creación + filtros HTMX -->
+
+    <section class="mt-6 overflow-x-auto rounded-lg">
+      {% include "_tickets_table.html" %}
+    </section>
   </main>
 </body>
 </html>

@@ -1,3 +1,21 @@
+{# Las clases de Tailwind van escritas completas: el CDN solo genera las que ve en el HTML. #}
+{% set category_styles = {
+  "bug": "bg-rose-100 text-rose-800 ring-rose-200",
+  "feature_request": "bg-sky-100 text-sky-800 ring-sky-200",
+  "question": "bg-slate-100 text-slate-700 ring-slate-200",
+  "urgent": "bg-orange-100 text-orange-800 ring-orange-300",
+} %}
+{% set priority_styles = {
+  "P1": "bg-red-600 text-white",
+  "P2": "bg-amber-100 text-amber-800",
+  "P3": "bg-emerald-100 text-emerald-800",
+} %}
+{% set status_styles = {
+  "open": "bg-blue-100 text-blue-800",
+  "in_progress": "bg-amber-100 text-amber-800",
+  "closed": "bg-slate-200 text-slate-600",
+} %}
+{% set status_labels = {"open": "Abierto", "in_progress": "En curso", "closed": "Cerrado"} %}
 <table class="min-w-full divide-y divide-slate-200 bg-white shadow-sm ring-1 ring-slate-200 rounded-lg overflow-hidden">
   <thead class="bg-slate-100">
     <tr>
@@ -10,7 +28,37 @@
       <th class="px-3 py-2 text-left text-sm font-semibold">Creado</th>
     </tr>
   </thead>
-  <tbody id="tickets-table-body">
-    <!-- TODO: renderizar tickets con Jinja2 -->
+  <tbody id="tickets-table-body" class="divide-y divide-slate-100">
+    {% for ticket in tickets %}
+    <tr class="hover:bg-slate-50">
+      <td class="px-3 py-2 text-sm text-slate-500">#{{ ticket.id }}</td>
+      <td class="px-3 py-2 text-sm font-medium max-w-xs truncate" title="{{ ticket.title }}">{{ ticket.title }}</td>
+      <td class="px-3 py-2 text-sm">
+        <span class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset {{ category_styles.get(ticket.category, 'bg-slate-100 text-slate-700 ring-slate-200') }}">{{ ticket.category }}</span>
+      </td>
+      <td class="px-3 py-2 text-sm">
+        <span class="inline-flex items-center whitespace-nowrap rounded px-2 py-0.5 text-xs font-bold {{ priority_styles.get(ticket.priority, 'bg-slate-100 text-slate-700') }}">{{ ticket.priority }}</span>
+      </td>
+      <td class="px-3 py-2 text-sm">
+        {% if ticket.tags %}
+        <div class="flex flex-wrap gap-1">
+          {% for tag in ticket.tags %}
+          <span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{{ tag }}</span>
+          {% endfor %}
+        </div>
+        {% else %}
+        <span class="text-slate-400">—</span>
+        {% endif %}
+      </td>
+      <td class="px-3 py-2 text-sm">
+        <span class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium {{ status_styles.get(ticket.status, 'bg-slate-100 text-slate-700') }}">{{ status_labels.get(ticket.status, ticket.status) }}</span>
+      </td>
+      <td class="px-3 py-2 text-sm text-slate-500 whitespace-nowrap">{{ ticket.created_at[:10] }} {{ ticket.created_at[11:16] }}</td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="7" class="px-3 py-6 text-center text-sm text-slate-500">Todavía no hay tickets</td>
+    </tr>
+    {% endfor %}
   </tbody>
 </table>
