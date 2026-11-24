@@ -20,7 +20,9 @@ def health() -> dict[str, str]:
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def board(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "index.html", {"tickets": db.list_tickets()})
+    return templates.TemplateResponse(
+        request, "index.html", {"tickets": db.list_tickets(), "now": db.now_iso()}
+    )
 
 
 def _fallback() -> dict:
@@ -56,7 +58,10 @@ def create_ticket(request: Request, payload: TicketCreate):
     ticket = db.create_ticket(payload.title, payload.description, classification)
     if request.headers.get("HX-Request") == "true":
         return templates.TemplateResponse(
-            request, "_rows.html", {"tickets": db.list_tickets()}, status_code=201
+            request,
+            "_rows.html",
+            {"tickets": db.list_tickets(), "now": db.now_iso()},
+            status_code=201,
         )
     return ticket
 
