@@ -61,11 +61,11 @@
       <div id="form-error" class="text-sm text-red-600" role="alert"></div>
     </form>
 
-    <section class="mt-8">
+    <!-- TODO: filtros HTMX -->
+
+    <section class="mt-6 overflow-x-auto rounded-lg">
       {% include "_tickets_table.html" %}
     </section>
-
-    <!-- TODO: filtros -->
   </main>
   <script>
     // Con 4xx HTMX no hace swap: mostramos un mensaje legible junto al formulario.
