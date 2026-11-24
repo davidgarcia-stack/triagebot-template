@@ -46,6 +46,16 @@ def _row_to_ticket(row: sqlite3.Row) -> dict:
     return ticket
 
 
+def list_tickets() -> list[dict]:
+    """Todos los tickets, los más recientes primero."""
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM tickets ORDER BY created_at DESC, id DESC").fetchall()
+        return [_row_to_ticket(row) for row in rows]
+    finally:
+        conn.close()
+
+
 def create_ticket(title: str, description: str, classification: dict) -> dict:
     now = _now()
     conn = get_conn()
