@@ -51,9 +51,14 @@ def _classify(title: str, description: str) -> dict:
 
 
 @app.post("/tickets", status_code=201, response_model=Ticket)
-def create_ticket(payload: TicketCreate) -> dict:
+def create_ticket(request: Request, payload: TicketCreate):
     classification = _classify(payload.title, payload.description)
-    return db.create_ticket(payload.title, payload.description, classification)
+    ticket = db.create_ticket(payload.title, payload.description, classification)
+    if request.headers.get("HX-Request") == "true":
+        return templates.TemplateResponse(
+            request, "_rows.html", {"tickets": db.list_tickets()}, status_code=201
+        )
+    return ticket
 
 
 # TODO: implementar durante el bootcamp.

@@ -67,5 +67,19 @@
       {% include "_tickets_table.html" %}
     </section>
   </main>
+  <script>
+    // Con 4xx HTMX no hace swap: mostramos un mensaje legible junto al formulario.
+    document.body.addEventListener("htmx:responseError", function (evt) {
+      var box = document.getElementById("form-error");
+      if (evt.detail.xhr.status === 422) {
+        box.textContent = "Título y descripción son obligatorios (máx. 200 y 5000 caracteres).";
+      } else {
+        box.textContent = "No se pudo crear el ticket. Inténtalo de nuevo.";
+      }
+    });
+    document.body.addEventListener("htmx:beforeRequest", function () {
+      document.getElementById("form-error").textContent = "";
+    });
+  </script>
 </body>
 </html>
