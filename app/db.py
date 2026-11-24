@@ -69,3 +69,12 @@ def create_ticket(title: str, description: str, classification: dict) -> dict:
         return _row_to_ticket(row)
     finally:
         conn.close()
+
+
+def list_tickets() -> list[dict]:
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM tickets ORDER BY created_at DESC, id DESC").fetchall()
+        return [_row_to_ticket(row) for row in rows]
+    finally:
+        conn.close()
