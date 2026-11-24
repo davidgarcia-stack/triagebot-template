@@ -282,3 +282,23 @@ def test_json_patch_does_not_trigger_refresh(create_ticket, client):
 
     assert response.headers["content-type"].startswith("application/json")
     assert "HX-Trigger" not in response.headers
+
+
+# --- Zona horaria (Windows sin tzdata) ------------------------------------------------
+
+
+def test_missing_timezone_data_falls_back_to_utc(monkeypatch, caplog):
+    from zoneinfo import ZoneInfoNotFoundError
+
+    def no_tz(key):
+        raise ZoneInfoNotFoundError(f"No time zone found with key {key}")
+
+    monkeypatch.setattr(dashboard, "ZoneInfo", no_tz)
+
+    with caplog.at_level("WARNING"):
+        assert dashboard._local_timezone() is UTC
+    assert "tzdata" in caplog.text
+
+
+def test_madrid_timezone_is_available_with_requirements():
+    assert str(dashboard.MADRID) == "Europe/Madrid"

@@ -5,17 +5,34 @@ Módulo puro: recibe la lista de tickets (tal como la devuelve `db.list_tickets(
 Las plantillas solo pintan lo que devuelve este módulo.
 """
 
+import logging
 import math
 from collections.abc import Callable
-from datetime import UTC, date, datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import UTC, date, datetime, timedelta, tzinfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.models import ISO_FORMAT
 
 # Estados que cuentan como «hecho»: ni están abiertos ni pueden vencer (SPEC §4).
 DONE_STATUSES = {"resolved", "closed"}
 
-MADRID = ZoneInfo("Europe/Madrid")
+logger = logging.getLogger(__name__)
+
+
+def _local_timezone(key: str = "Europe/Madrid") -> tzinfo:
+    """Zona horaria del equipo de soporte para el saludo y la fecha del tablero.
+
+    En Windows Python no trae la base de datos de zonas: la aporta el paquete `tzdata`
+    (en requirements.txt). Si aun así falta, se usa UTC en vez de tumbar la app al importar.
+    """
+    try:
+        return ZoneInfo(key)
+    except ZoneInfoNotFoundError:
+        logger.warning("Zona horaria %s no disponible (¿falta tzdata?); se usa UTC.", key)
+        return UTC
+
+
+MADRID = _local_timezone()
 SPARK_DAYS = 14
 TREND_RANGES = (7, 30, 90)
 
