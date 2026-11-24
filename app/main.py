@@ -51,9 +51,21 @@ def _classify(title: str, description: str) -> dict:
 
 
 @app.post("/tickets", status_code=201, response_model=Ticket)
-def create_ticket(payload: TicketCreate) -> dict:
+def create_ticket(request: Request, payload: TicketCreate):
     classification = _classify(payload.title, payload.description)
-    return db.create_ticket(payload.title, payload.description, classification)
+    ticket = db.create_ticket(payload.title, payload.description, classification)
+
+    # HTMX (el formulario de /) pide HTML: devolvemos las filas ya renderizadas para que
+    # hx-swap las meta en el <tbody>. Cualquier otro cliente recibe el JSON del SPEC §4.
+    if request.headers.get("HX-Request") == "true":
+        return templates.TemplateResponse(
+            request,
+            "_tickets_rows.html",
+            {"tickets": db.list_tickets()},
+            status_code=201,
+            headers={"Vary": "HX-Request"},
+        )
+    return ticket
 
 
 # TODO: implementar durante el bootcamp.
