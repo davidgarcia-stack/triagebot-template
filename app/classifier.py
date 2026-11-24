@@ -44,6 +44,12 @@ def _fallback() -> dict:
     return {**FALLBACK_CLASSIFICATION, "tags": []}
 
 
+def is_configured() -> bool:
+    """True si hay API key en el entorno. Solo informa de su presencia, nunca de su valor."""
+    load_dotenv()
+    return bool(os.environ.get("OPENROUTER_API_KEY"))
+
+
 def _get_client() -> OpenAI | None:
     """Cliente de OpenRouter, o None si no hay API key. La key solo viene del entorno."""
     load_dotenv()

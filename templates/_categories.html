@@ -1,0 +1,24 @@
+<section id="categories" {% if oob %}hx-swap-oob="true"{% endif %} class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70">
+  <h2 class="text-lg font-bold text-slate-900">Por categoría</h2>
+  <p class="text-sm text-slate-500">Reparto de los {{ categories.total }} tickets</p>
+  <ul class="mt-6 space-y-5">
+    {% for row in categories.rows %}
+    <li data-tip="{{ row.label }}: {{ row.count }} {{ 'ticket' if row.count == 1 else 'tickets' }} ({{ row.pct }}%)">
+      <div class="flex items-baseline justify-between text-sm">
+        <span class="font-medium text-slate-700">{{ row.label }}</span>
+        <span class="text-slate-500"><span class="font-semibold text-slate-900">{{ row.count }}</span> · {{ row.pct }}%</span>
+      </div>
+      <div class="mt-2 h-2.5 rounded bg-slate-100">
+        <div class="h-2.5 rounded bg-indigo-500" style="width: {{ row.bar }}%"></div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  <table class="sr-only">
+    <caption>Tickets por categoría</caption>
+    <thead><tr><th>Categoría</th><th>Tickets</th><th>Porcentaje</th></tr></thead>
+    <tbody>
+      {% for row in categories.rows %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td><td>{{ row.pct }}%</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>

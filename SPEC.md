@@ -363,6 +363,33 @@ contener:
 5. **Estado vacío**: si no hay tickets (o el filtro no devuelve nada), una fila
    con "No hay tickets".
 
+### 7.1 Diseño del tablero (resumen y gráficas)
+
+Encima del formulario y la lista, la página muestra un resumen calculado con
+**datos reales** de los tickets (nada de datos de ejemplo). Las métricas viven en
+`app/dashboard.py` (módulo puro: sin FastAPI, sin SQL, sin LLM).
+
+- **Cabecera** oscura con la marca TriageBot, una píldora con el estado del
+  clasificador («IA conectada» si existe `OPENROUTER_API_KEY`, «IA en modo
+  fallback» si no; nunca se muestra la clave) y el botón «Nuevo ticket».
+- **Banner**: saludo según la hora de Madrid, frase de resumen (vencidos y P1 sin
+  cerrar) y tres barras de progreso: *Resueltos* (cerrados / total), *En curso*
+  (`in_progress` / total) y *En plazo* (abiertos no vencidos / abiertos).
+- **4 KPIs**: tickets abiertos, P1 sin cerrar, urgentes abiertos y vencidos.
+  Los tres primeros comparan los creados en los últimos 7 días con los 7
+  anteriores (flecha + %; «—» si la semana anterior no tiene tickets). Cada uno
+  lleva una mini-gráfica de los últimos 14 días.
+- **Gráficas**: *Tickets creados* por día con selector 7D / 30D / 90D
+  (`GET /partials/tendencia?dias=…`; otro valor → `422`) y *Por categoría*
+  (barras horizontales con número y %). Tooltip al pasar el ratón y tabla
+  accesible con los mismos datos.
+- **Refresco**: al crear un ticket por HTMX, `POST /tickets` añade la cabecera
+  `HX-Trigger: ticketCreated`; el resumen (`GET /partials/resumen`) y la
+  tendencia se recargan solos conservando el rango elegido. La respuesta JSON
+  del `POST` no cambia.
+- **Responsive**: a 390 px no hay scroll horizontal de página; la gráfica de
+  tendencia usa una versión compacta para que el texto sea legible.
+
 Reglas:
 
 - Todo el HTML vive en `templates/`. Nada de HTML grande como string en
@@ -482,3 +509,5 @@ el README) con fecha y motivo. Ejemplo:
 | 2026-11-24 | Fecha límite `due_at` por prioridad: P1 24 h, P2 72 h, P3 7 días | Que soporte vea qué vence antes y qué va tarde. Plazos alineados con los criterios del prompt (P1 hoy, P2 mañana, P3 puede esperar) con margen realista |
 | 2026-11-24 | `due_at` en horas naturales | Simple y predecible; sin calendario laboral ni festivos que mantener |
 | 2026-11-24 | `due_at` se calcula desde `created_at` con la prioridad actual y no se guarda | Sigue sola los cambios de prioridad y evita una columna nueva y migrar bases existentes |
+| 2026-11-24 | Rediseño del tablero (§7.1) inspirado en un dashboard de muestra: se adopta el lenguaje visual, no la marca ni elementos sin función | Petición del cliente; se descartan buscador, notificaciones y menús de secciones que no existen |
+| 2026-11-24 | Gráficas en SVG generado en el servidor, sin librerías JS; tipografía Inter por Google Fonts | Mantener el stack (Jinja2 + HTMX + Tailwind CDN) sin dependencias nuevas ni build |

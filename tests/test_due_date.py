@@ -27,6 +27,11 @@ def iso(moment: datetime) -> str:
     return moment.strftime(ISO_FORMAT)
 
 
+def table_html(client) -> str:
+    """Solo la lista de tickets: el resto del tablero (p. ej. la tarjeta «Vencidos») no cuenta."""
+    return client.get("/").text.split('id="tickets-table-body"', 1)[1]
+
+
 # --- compute_due_at ---------------------------------------------------------------
 
 
@@ -103,14 +108,14 @@ def test_board_has_due_date_column(create_ticket, client):
 
 def test_new_ticket_is_not_overdue(create_ticket, client):
     create_ticket(priority="P1")
-    assert "Vencido" not in client.get("/").text
+    assert "Vencido" not in table_html(client)
 
 
 def test_past_due_open_ticket_is_overdue(create_ticket, client):
     ticket = create_ticket(priority="P1")
     set_row(ticket["id"], created_at=iso(datetime.now(UTC) - timedelta(days=3)))
 
-    assert "Vencido" in client.get("/").text
+    assert "Vencido" in table_html(client)
 
 
 def test_closed_ticket_is_never_overdue(create_ticket, client):
@@ -121,7 +126,7 @@ def test_closed_ticket_is_never_overdue(create_ticket, client):
         status="closed",
     )
 
-    assert "Vencido" not in client.get("/").text
+    assert "Vencido" not in table_html(client)
 
 
 def test_htmx_fragment_includes_due_date(create_ticket, client, set_classification):
