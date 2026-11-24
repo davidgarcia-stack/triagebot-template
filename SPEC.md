@@ -99,15 +99,33 @@ Una sola entidad: `Ticket`.
 | `category` | str | Uno de: `bug`, `feature_request`, `question`, `urgent` |
 | `priority` | str | Uno de: `P1`, `P2`, `P3` |
 | `tags` | list[str] | Lista (puede estar vacía). Máx. 5 tags, cada uno máx. 30 chars, en minúscula y sin duplicados |
-| `status` | str | Uno de: `open`, `in_progress`, `closed`. Default: `open` |
+| `status` | str | Uno de: `open`, `in_progress`, `resolved`, `closed`. Default: `open`. Ver «Ciclo de vida» |
 | `created_at` | datetime | UTC, generado en servidor |
 | `updated_at` | datetime | UTC. Igual a `created_at` al crear; se actualiza en cada `PATCH` |
+| `status_changed_at` | datetime | UTC. Igual a `created_at` al crear; solo cambia cuando cambia `status` |
 
 `category`, `priority` y `tags` los rellena el clasificador (sección 6) en el
 momento de crear el ticket.
 
 > **Los enums son vinculantes.** Si vuestro código devuelve `"URGENT"` en
 > mayúsculas o un valor fuera de la lista, los tests fallan.
+
+### Ciclo de vida
+
+| Valor | Se muestra como |
+|-------|-----------------|
+| `open` | Abierto |
+| `in_progress` | En curso |
+| `resolved` | Resuelto |
+| `closed` | Cerrado |
+
+- Se avanza en el orden `open → in_progress → resolved → closed`; se pueden
+  saltar pasos hacia delante (p. ej. `open → closed`).
+- **Reabrir:** desde `resolved` o `closed` se puede volver a `open`.
+- Cualquier otro retroceso (p. ej. `closed → in_progress`) es inválido → `422`.
+- Pedir el mismo estado que ya tiene es un no-op válido (no reinicia el tiempo).
+- Las bases creadas con el esquema anterior se migran solas al abrir la conexión:
+  se añade `status_changed_at` rellenándola con `updated_at`.
 
 ### Esquema SQLite
 
@@ -121,7 +139,8 @@ CREATE TABLE IF NOT EXISTS tickets (
     tags        TEXT    NOT NULL DEFAULT '[]',   -- lista serializada con json.dumps
     status      TEXT    NOT NULL DEFAULT 'open',
     created_at  TEXT    NOT NULL,               -- ISO 8601 UTC, p. ej. 2026-06-29T09:30:00Z
-    updated_at  TEXT    NOT NULL
+    updated_at  TEXT    NOT NULL,
+    status_changed_at TEXT NOT NULL             -- momento del último cambio de status
 );
 ```
 
@@ -219,10 +238,14 @@ tras la creación.
 { "status": "in_progress", "priority": "P2" }
 ```
 
-- **Response `200 OK`**: ticket actualizado, con `updated_at` renovado.
+- **Response `200 OK`**: ticket actualizado, con `updated_at` renovado y
+  `status_changed_at` renovado solo si cambió `status`.
+- Con `HX-Request: true` devuelve el fragmento de **una fila** (`_row.html`).
 - **Response `404 Not Found`**: si no existe.
 - **Response `422`**: si algún valor no pertenece al enum permitido, si el body
   viene vacío (`{}`) o si trae campos no permitidos (`title`, `category`…).
+- **Response `422`** `{"detail": "Transición no permitida: closed → in_progress"}`
+  si el cambio de `status` no respeta el ciclo de vida (sección 4).
 
 ### `GET /`
 
@@ -335,7 +358,12 @@ contener:
    `GET /tickets?…` con los tres valores (`hx-include`) y reemplaza solo las
    filas.
 4. **Cambio de estado** desde la tabla: un `<select>` de `status` por fila que
-   hace `PATCH /tickets/{id}` y refresca la fila.
+   ofrece el estado actual y los siguientes permitidos; hace `PATCH /tickets/{id}`
+   y refresca la fila. Si el ticket está en `resolved` o `closed`, un botón
+   **Reabrir** lo devuelve a `open`. Un `422` se muestra como mensaje legible.
+   Columna **En este estado** con el tiempo desde `status_changed_at` en texto
+   relativo («hace un momento», «hace 5 min», «hace 3 h», «hace 2 días»),
+   calculado al renderizar.
 5. **Estado vacío**: si no hay tickets (o el filtro no devuelve nada), una fila
    con "No hay tickets".
 
@@ -455,4 +483,6 @@ el README) con fecha y motivo. Ejemplo:
 
 | Fecha | Decisión | Motivo |
 |-------|----------|--------|
-| | | |
+| 2026-11-24 | Nuevo estado `resolved` («Resuelto») entre `in_progress` y `closed`; los valores de la API siguen en inglés | Pedido de ciclo de vida («en curso», «resuelto»). `test_acceptance.py` exige `in_progress` y `closed`, así que no se renombran |
+| 2026-11-24 | Transiciones: solo hacia delante, más «Reabrir» (`resolved`/`closed` → `open`); el resto → `422` | Permitir reabrir sin perder el sentido del flujo; los tests exigen `open → closed` directo |
+| 2026-11-24 | Campo `status_changed_at` y columna «En este estado» en texto relativo | Mostrar cuánto tiempo lleva el ticket en su estado actual |

@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS tickets (
     tags TEXT NOT NULL DEFAULT '[]',
     status TEXT NOT NULL DEFAULT 'open',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    status_changed_at TEXT NOT NULL
 )
 """
 
@@ -33,7 +34,17 @@ def get_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(_db_path())
     conn.row_factory = sqlite3.Row
     conn.execute(SCHEMA)
+    _migrate(conn)
     return conn
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Añade status_changed_at a bases creadas con el esquema antiguo (idempotente)."""
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(tickets)")}
+    if "status_changed_at" not in columns:
+        with conn:
+            conn.execute("ALTER TABLE tickets ADD COLUMN status_changed_at TEXT")
+            conn.execute("UPDATE tickets SET status_changed_at = updated_at")
 
 
 def _now() -> str:
@@ -46,12 +57,55 @@ def _row_to_ticket(row: sqlite3.Row) -> dict:
     return ticket
 
 
-def list_tickets() -> list[dict]:
-    """Todos los tickets, los más recientes primero."""
+def list_tickets(
+    category: str | None = None, priority: str | None = None, status: str | None = None
+) -> list[dict]:
+    """Tickets filtrados por igualdad exacta (None = sin filtro), los más recientes primero."""
     conn = get_conn()
     try:
-        rows = conn.execute("SELECT * FROM tickets ORDER BY created_at DESC, id DESC").fetchall()
+        rows = conn.execute(
+            "SELECT * FROM tickets "
+            "WHERE (? IS NULL OR category = ?) "
+            "AND (? IS NULL OR priority = ?) "
+            "AND (? IS NULL OR status = ?) "
+            "ORDER BY created_at DESC, id DESC",
+            (category, category, priority, priority, status, status),
+        ).fetchall()
         return [_row_to_ticket(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def get_ticket(ticket_id: int) -> dict | None:
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+        return _row_to_ticket(row) if row else None
+    finally:
+        conn.close()
+
+
+def update_ticket(ticket_id: int, status: str | None = None, priority: str | None = None) -> dict:
+    """Actualiza status y/o priority. status_changed_at solo cambia si el estado cambia."""
+    now = _now()
+    conn = get_conn()
+    try:
+        with conn:
+            current = conn.execute(
+                "SELECT status FROM tickets WHERE id = ?", (ticket_id,)
+            ).fetchone()
+            if status is not None and status != current["status"]:
+                conn.execute(
+                    "UPDATE tickets SET status = ?, status_changed_at = ? WHERE id = ?",
+                    (status, now, ticket_id),
+                )
+            if priority is not None:
+                conn.execute(
+                    "UPDATE tickets SET priority = ? WHERE id = ?", (priority, ticket_id)
+                )
+            conn.execute("UPDATE tickets SET updated_at = ? WHERE id = ?", (now, ticket_id))
+        row = conn.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+        return _row_to_ticket(row)
     finally:
         conn.close()
 
@@ -63,14 +117,15 @@ def create_ticket(title: str, description: str, classification: dict) -> dict:
         with conn:
             cursor = conn.execute(
                 "INSERT INTO tickets "
-                "(title, description, category, priority, tags, status, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, 'open', ?, ?)",
+                "(title, description, category, priority, tags, status, created_at, updated_at, "
+                "status_changed_at) VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)",
                 (
                     title,
                     description,
                     classification["category"],
                     classification["priority"],
                     json.dumps(classification["tags"]),
+                    now,
                     now,
                     now,
                 ),

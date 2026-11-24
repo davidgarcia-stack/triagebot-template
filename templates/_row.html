@@ -1,0 +1,71 @@
+{# Una fila del tablero. La usan _rows.html y la respuesta HTMX de PATCH /tickets/{id}. #}
+{# Las clases de Tailwind van escritas completas: el CDN solo genera las que ve en el HTML. #}
+{% set category_styles = {
+  "bug": "bg-rose-100 text-rose-800 ring-rose-200",
+  "feature_request": "bg-sky-100 text-sky-800 ring-sky-200",
+  "question": "bg-slate-100 text-slate-700 ring-slate-200",
+  "urgent": "bg-orange-100 text-orange-800 ring-orange-300",
+} %}
+{% set priority_styles = {
+  "P1": "bg-red-600 text-white",
+  "P2": "bg-amber-100 text-amber-800",
+  "P3": "bg-emerald-100 text-emerald-800",
+} %}
+{% set status_styles = {
+  "open": "bg-blue-100 text-blue-800 ring-blue-200",
+  "in_progress": "bg-amber-100 text-amber-800 ring-amber-200",
+  "resolved": "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  "closed": "bg-slate-200 text-slate-600 ring-slate-300",
+} %}
+<tr id="ticket-{{ ticket.id }}" class="hover:bg-slate-50">
+  <td class="px-3 py-2 text-sm text-slate-500">#{{ ticket.id }}</td>
+  <td class="px-3 py-2 text-sm font-medium max-w-xs truncate" title="{{ ticket.title }}">{{ ticket.title }}</td>
+  <td class="px-3 py-2 text-sm">
+    <span class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset {{ category_styles.get(ticket.category, 'bg-slate-100 text-slate-700 ring-slate-200') }}">{{ ticket.category }}</span>
+  </td>
+  <td class="px-3 py-2 text-sm">
+    <span class="inline-flex items-center whitespace-nowrap rounded px-2 py-0.5 text-xs font-bold {{ priority_styles.get(ticket.priority, 'bg-slate-100 text-slate-700') }}">{{ ticket.priority }}</span>
+  </td>
+  <td class="px-3 py-2 text-sm">
+    {% if ticket.tags %}
+    <div class="flex flex-wrap gap-1">
+      {% for tag in ticket.tags %}
+      <span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{{ tag }}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <span class="text-slate-400">—</span>
+    {% endif %}
+  </td>
+  <td class="px-3 py-2 text-sm">
+    <div class="flex items-center gap-2">
+      <select
+        name="status"
+        aria-label="Estado del ticket #{{ ticket.id }}"
+        class="rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset {{ status_styles.get(ticket.status, 'bg-slate-100 text-slate-700 ring-slate-200') }}"
+        hx-patch="/tickets/{{ ticket.id }}"
+        hx-ext="json-enc"
+        hx-trigger="change"
+        hx-target="closest tr"
+        hx-swap="outerHTML"
+      >
+        {% for value in next_statuses(ticket.status) %}
+        <option value="{{ value }}" {% if value == ticket.status %}selected{% endif %}>{{ status_labels[value] }}</option>
+        {% endfor %}
+      </select>
+      {% if ticket.status in reopenable_statuses %}
+      <button
+        type="button"
+        class="whitespace-nowrap rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-700 hover:bg-slate-100"
+        hx-patch="/tickets/{{ ticket.id }}"
+        hx-ext="json-enc"
+        hx-vals='{"status": "open"}'
+        hx-target="closest tr"
+        hx-swap="outerHTML"
+      >Reabrir</button>
+      {% endif %}
+    </div>
+  </td>
+  <td class="px-3 py-2 text-sm text-slate-500 whitespace-nowrap" title="Desde {{ ticket.status_changed_at }}">{{ ticket.status_changed_at | since }}</td>
+  <td class="px-3 py-2 text-sm text-slate-500 whitespace-nowrap">{{ ticket.created_at[:10] }} {{ ticket.created_at[11:16] }}</td>
+</tr>
