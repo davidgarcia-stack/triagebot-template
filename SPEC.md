@@ -546,3 +546,4 @@ el README) con fecha y motivo. Ejemplo:
 | 2026-11-24 | `due_at` se calcula desde `created_at` con la prioridad actual y no se guarda | Sigue sola los cambios de prioridad y evita una columna nueva y migrar bases existentes |
 | 2026-11-24 | Rediseño del tablero (§7.1) inspirado en un dashboard de muestra: se adopta el lenguaje visual, no la marca ni elementos sin función | Petición del cliente; se descartan buscador, notificaciones y menús de secciones que no existen |
 | 2026-11-24 | Gráficas en SVG generado en el servidor, sin librerías JS; tipografía Inter por Google Fonts | Mantener el stack (Jinja2 + HTMX + Tailwind CDN) sin dependencias nuevas ni build |
+| 2026-11-24 | Nueva dependencia `tzdata==2024.2` | En Windows Python no incluye las zonas horarias y `ZoneInfo("Europe/Madrid")` fallaba al arrancar. Si aun así falta, el tablero usa UTC y lo avisa en el log |
