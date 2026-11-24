@@ -3,7 +3,7 @@ import os
 import sqlite3
 from datetime import UTC, datetime
 
-from app.models import ISO_FORMAT, compute_due_at
+from app.models import CATEGORY_ORDER, ISO_FORMAT, PRIORITY_ORDER, STATUS_ORDER, compute_due_at
 
 DEFAULT_DB_PATH = "triagebot.db"
 
@@ -79,6 +79,34 @@ def list_tickets(
         return [_row_to_ticket(row) for row in rows]
     finally:
         conn.close()
+
+
+def _counts(rows: list[sqlite3.Row], keys: tuple[str, ...]) -> dict[str, int]:
+    """Todas las claves del enum en orden fijo, con 0 si no hay tickets de ese valor."""
+    found = {row[0]: row[1] for row in rows}
+    return {key: found.get(key, 0) for key in keys}
+
+
+def ticket_stats() -> dict:
+    """Total de tickets y conteos por categoría, prioridad y estado."""
+    conn = get_conn()
+    try:
+        total = conn.execute("SELECT COUNT(*) FROM tickets").fetchone()[0]
+        by_category = conn.execute(
+            "SELECT category, COUNT(*) FROM tickets GROUP BY category"
+        ).fetchall()
+        by_priority = conn.execute(
+            "SELECT priority, COUNT(*) FROM tickets GROUP BY priority"
+        ).fetchall()
+        by_status = conn.execute("SELECT status, COUNT(*) FROM tickets GROUP BY status").fetchall()
+    finally:
+        conn.close()
+    return {
+        "total": total,
+        "by_category": _counts(by_category, CATEGORY_ORDER),
+        "by_priority": _counts(by_priority, PRIORITY_ORDER),
+        "by_status": _counts(by_status, STATUS_ORDER),
+    }
 
 
 def get_ticket(ticket_id: int) -> dict | None:

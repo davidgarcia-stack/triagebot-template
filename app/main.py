@@ -17,6 +17,7 @@ from app.models import (
     Status,
     Ticket,
     TicketCreate,
+    TicketStats,
     TicketUpdate,
     is_valid_transition,
     next_statuses,
@@ -145,6 +146,12 @@ def list_tickets(
     status: Status | None = None,
 ) -> list[dict]:
     return db.list_tickets(category=category, priority=priority, status=status)
+
+
+@app.get("/tickets/stats", response_model=TicketStats)
+def ticket_stats() -> dict:
+    """Conteos para informes: total, por categoría, por prioridad y por estado. Solo JSON."""
+    return db.ticket_stats()
 
 
 @app.patch("/tickets/{ticket_id}", response_model=Ticket)

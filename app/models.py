@@ -3,8 +3,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-ALLOWED_CATEGORIES = {"bug", "feature_request", "question", "urgent"}
-ALLOWED_PRIORITIES = {"P1", "P2", "P3"}
+# Orden fijo de los enums (lo usan, p. ej., las claves de GET /tickets/stats).
+CATEGORY_ORDER = ("bug", "feature_request", "question", "urgent")
+PRIORITY_ORDER = ("P1", "P2", "P3")
+ALLOWED_CATEGORIES = set(CATEGORY_ORDER)
+ALLOWED_PRIORITIES = set(PRIORITY_ORDER)
 
 # Ciclo de vida: se avanza en este orden (se pueden saltar pasos hacia delante).
 STATUS_ORDER = ("open", "in_progress", "resolved", "closed")
@@ -86,3 +89,12 @@ class Ticket(BaseModel):
     updated_at: datetime
     status_changed_at: datetime
     due_at: datetime
+
+
+class TicketStats(BaseModel):
+    """Conteos de GET /tickets/stats. Cada dict trae siempre todas las claves de su enum."""
+
+    total: int
+    by_category: dict[str, int]
+    by_priority: dict[str, int]
+    by_status: dict[str, int]

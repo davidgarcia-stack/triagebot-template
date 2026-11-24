@@ -244,6 +244,24 @@ GET /tickets?category=bug&priority=P1&status=open
 - **Response `422`**: si un filtro trae un valor fuera de su enum
   (p. ej. `?priority=P9`).
 
+### `GET /tickets/stats`
+
+Conteos para informes. **Solo JSON**, sin fragmento HTMX ni interfaz.
+
+**Response `200 OK`**:
+```json
+{
+  "total": 47,
+  "by_category": {"bug": 18, "feature_request": 9, "question": 12, "urgent": 8},
+  "by_priority": {"P1": 5, "P2": 20, "P3": 22},
+  "by_status": {"open": 30, "in_progress": 9, "resolved": 5, "closed": 3}
+}
+```
+
+- Cada objeto trae **todas** las claves de su enum, con `0` si no hay tickets
+  de ese valor, y en el orden fijo de la sección 4.
+- `by_priority` cuenta la prioridad **actual** (tras los `PATCH`).
+
 ### `GET /tickets/{id}`
 
 - **Response `200 OK`**: ticket JSON.
@@ -547,3 +565,4 @@ el README) con fecha y motivo. Ejemplo:
 | 2026-11-24 | Rediseño del tablero (§7.1) inspirado en un dashboard de muestra: se adopta el lenguaje visual, no la marca ni elementos sin función | Petición del cliente; se descartan buscador, notificaciones y menús de secciones que no existen |
 | 2026-11-24 | Gráficas en SVG generado en el servidor, sin librerías JS; tipografía Inter por Google Fonts | Mantener el stack (Jinja2 + HTMX + Tailwind CDN) sin dependencias nuevas ni build |
 | 2026-11-24 | Nueva dependencia `tzdata==2024.2` | En Windows Python no incluye las zonas horarias y `ZoneInfo("Europe/Madrid")` fallaba al arrancar. Si aun así falta, el tablero usa UTC y lo avisa en el log |
+| 2026-11-24 | `GET /tickets/stats` devuelve siempre todas las claves de cada enum (con 0) y en orden fijo | Pedido para una presentación interna; quien consuma el JSON no tiene que comprobar si falta una clave |
