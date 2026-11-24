@@ -6,13 +6,62 @@
   <title>TriageBot</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://unpkg.com/htmx-ext-json-enc@2.0.1/json-enc.js"></script>
+  <style>
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline; }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
   <main class="mx-auto max-w-6xl p-6">
     <h1 class="text-3xl font-bold">TriageBot</h1>
     <p class="mt-2 text-slate-600">Tablero de incidencias con clasificación automática por IA.</p>
 
-    <!-- TODO: formulario de creación + filtros HTMX -->
+    <form
+      id="ticket-form"
+      class="mt-6 space-y-4 rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200"
+      hx-post="/tickets"
+      hx-ext="json-enc"
+      hx-target="#tickets-table-body"
+      hx-disabled-elt="find button"
+      hx-indicator="#spinner"
+      hx-on::after-request="if (event.detail.successful) this.reset()"
+    >
+      <div>
+        <label for="title" class="block text-sm font-medium">Título</label>
+        <input
+          type="text"
+          id="title"
+          name="title"
+          required
+          maxlength="200"
+          class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
+        >
+      </div>
+      <div>
+        <label for="description" class="block text-sm font-medium">Descripción</label>
+        <textarea
+          id="description"
+          name="description"
+          rows="4"
+          required
+          maxlength="5000"
+          class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
+        ></textarea>
+      </div>
+      <div class="flex items-center gap-3">
+        <button
+          type="submit"
+          class="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-slate-700 disabled:opacity-50"
+        >
+          Crear ticket
+        </button>
+        <span id="spinner" class="htmx-indicator text-sm text-slate-600">Clasificando…</span>
+      </div>
+      <div id="form-error" class="text-sm text-red-600" role="alert"></div>
+    </form>
+
+    <!-- TODO: filtros HTMX -->
 
     <section class="mt-6 overflow-x-auto rounded-lg">
       {% include "_tickets_table.html" %}
