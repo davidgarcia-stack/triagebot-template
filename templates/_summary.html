@@ -6,7 +6,7 @@
   "cyan": {"card": "from-white to-cyan-50/80 ring-cyan-100", "tile": "from-cyan-400 to-sky-500 shadow-cyan-500/30", "stroke": "#0891b2"},
   "amber": {"card": "from-white to-amber-50/90 ring-amber-100", "tile": "from-amber-400 to-orange-500 shadow-orange-500/30", "stroke": "#f59e0b"},
 } %}
-<div id="summary" hx-get="/partials/resumen" hx-trigger="ticketCreated from:body" hx-swap="outerHTML">
+<div id="summary" hx-get="/partials/resumen" hx-trigger="ticketsChanged from:body" hx-swap="outerHTML">
   {# --- Banner --- #}
   <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0b1031] via-[#151a4d] to-[#3d2fa8] p-6 text-white shadow-xl shadow-indigo-950/20 sm:p-8">
     <div class="pointer-events-none absolute inset-0 opacity-[0.07]" style="background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 32px 32px;"></div>

@@ -12,6 +12,9 @@ from zoneinfo import ZoneInfo
 
 from app.models import ISO_FORMAT
 
+# Estados que cuentan como «hecho»: ni están abiertos ni pueden vencer (SPEC §4).
+DONE_STATUSES = {"resolved", "closed"}
+
 MADRID = ZoneInfo("Europe/Madrid")
 SPARK_DAYS = 14
 TREND_RANGES = (7, 30, 90)
@@ -42,11 +45,11 @@ def _pct(part: int, total: int) -> int:
 
 
 def is_open(ticket: dict) -> bool:
-    return ticket["status"] != "closed"
+    return ticket["status"] not in DONE_STATUSES
 
 
 def is_overdue(ticket: dict, now: str) -> bool:
-    """Vencido = fecha límite pasada y no cerrado (SPEC §4). Cadenas ISO UTC: comparan bien."""
+    """Vencido = fecha límite pasada y ni resuelto ni cerrado (SPEC §4). ISO UTC compara bien."""
     return is_open(ticket) and ticket["due_at"] < now
 
 
@@ -227,7 +230,7 @@ def build_summary(tickets: list[dict], now: str) -> dict:
     open_tickets = [t for t in tickets if is_open(t)]
     total, open_count = len(tickets), len(open_tickets)
     in_progress = sum(t["status"] == "in_progress" for t in tickets)
-    closed = total - open_count
+    done = total - open_count
     overdue = sum(is_overdue(t, now) for t in tickets)
 
     def is_p1(t: dict) -> bool:
@@ -276,7 +279,7 @@ def build_summary(tickets: list[dict], now: str) -> dict:
         },
         {
             "key": "overdue",
-            "label": "Vencidos",
+            "label": "Fuera de plazo",
             "value": overdue,
             "tone": "amber",
             "icon": "clock",
@@ -293,7 +296,7 @@ def build_summary(tickets: list[dict], now: str) -> dict:
         "total": total,
         "open": open_count,
         "progress": [
-            {"label": "Resueltos", "value": closed, "of": total, "pct": _pct(closed, total)},
+            {"label": "Resueltos", "value": done, "of": total, "pct": _pct(done, total)},
             {
                 "label": "En curso",
                 "value": in_progress,

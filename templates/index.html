@@ -143,8 +143,10 @@
 
     <!-- TODO: filtros HTMX -->
 
+    <div id="board-error" class="mt-6 text-sm font-medium text-red-600" role="alert"></div>
+
     {# --- Lista --- #}
-    <section id="lista" class="mt-6 scroll-mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70">
+    <section id="lista" class="mt-2 scroll-mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70">
       <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
         <div>
           <h2 class="text-lg font-bold">Tickets</h2>
@@ -161,17 +163,26 @@
   <div id="viz-tip" class="pointer-events-none fixed z-50 hidden rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg" role="status"></div>
 
   <script>
-    // Con 4xx HTMX no hace swap: mostramos un mensaje legible junto al formulario.
+    // Con 4xx HTMX no hace swap: mostramos un mensaje legible en vez del JSON crudo.
     document.body.addEventListener("htmx:responseError", function (evt) {
-      var box = document.getElementById("form-error");
-      if (evt.detail.xhr.status === 422) {
+      var fromForm = evt.detail.elt.closest("#ticket-form") !== null;
+      var box = document.getElementById(fromForm ? "form-error" : "board-error");
+      var status = evt.detail.xhr.status;
+      if (fromForm && status === 422) {
         box.textContent = "Título y descripción son obligatorios (máx. 200 y 5000 caracteres).";
+      } else if (!fromForm && status === 422) {
+        var detail = "";
+        try { detail = JSON.parse(evt.detail.xhr.responseText).detail; } catch (e) {}
+        box.textContent = typeof detail === "string" ? detail : "Transición de estado no permitida.";
+      } else if (!fromForm && status === 404) {
+        box.textContent = "El ticket ya no existe. Recarga la página.";
       } else {
-        box.textContent = "No se pudo crear el ticket. Inténtalo de nuevo.";
+        box.textContent = "No se pudo completar la operación. Inténtalo de nuevo.";
       }
     });
     document.body.addEventListener("htmx:beforeRequest", function () {
       document.getElementById("form-error").textContent = "";
+      document.getElementById("board-error").textContent = "";
     });
 
     // Tooltip y cruceta: delegación en document, así sigue funcionando tras los swaps de HTMX.

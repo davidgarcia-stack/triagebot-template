@@ -164,7 +164,7 @@ def test_board_page_has_banner_kpis_and_charts(create_ticket, client):
     html = client.get("/").text
 
     for text in ("Tablero de triage", "Tickets abiertos", "P1 sin cerrar", "Urgentes abiertos",
-                 "Vencidos", "Tickets creados", "Por categoría", "Nuevo ticket"):
+                 "Fuera de plazo", "Tickets creados", "Por categoría", "Nuevo ticket"):
         assert text in html
     assert 'id="summary"' in html and 'id="trend"' in html and 'id="categories"' in html
 
@@ -213,7 +213,7 @@ def test_htmx_post_triggers_dashboard_refresh(client, set_classification):
     )
 
     assert response.status_code == 201
-    assert response.headers["HX-Trigger"] == "ticketCreated"
+    assert response.headers["HX-Trigger"] == "ticketsChanged"
 
 
 def test_json_post_does_not_trigger_refresh(client, set_classification):
@@ -242,3 +242,43 @@ def test_user_content_is_still_escaped(create_ticket, client):
 
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+
+
+# --- Integración con el ciclo de vida (resolved) -------------------------------------
+
+
+def test_resolved_counts_as_done_and_never_overdue():
+    tickets = [
+        make(3, priority="P1", status="resolved"),  # vencería, pero está resuelto
+        make(3, priority="P1", status="closed"),
+        make(0, priority="P3", status="open"),
+    ]
+
+    summary = dashboard.build_summary(tickets, NOW)
+
+    assert summary["open"] == 1
+    assert kpi(summary, "overdue")["value"] == 0
+    assert kpi(summary, "p1")["value"] == 0
+    resolved = summary["progress"][0]
+    assert (resolved["value"], resolved["of"]) == (2, 3)
+
+
+def test_htmx_patch_triggers_dashboard_refresh(create_ticket, client):
+    ticket = create_ticket()
+
+    response = client.patch(
+        f"/tickets/{ticket['id']}", json={"status": "resolved"}, headers={"HX-Request": "true"}
+    )
+
+    assert response.status_code == 200
+    assert response.headers["HX-Trigger"] == "ticketsChanged"
+    assert f'id="ticket-{ticket["id"]}"' in response.text
+
+
+def test_json_patch_does_not_trigger_refresh(create_ticket, client):
+    ticket = create_ticket()
+
+    response = client.patch(f"/tickets/{ticket['id']}", json={"status": "in_progress"})
+
+    assert response.headers["content-type"].startswith("application/json")
+    assert "HX-Trigger" not in response.headers
